@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- SEO Meta Tags -->
+    <title>QS Connect - Быстрая передача файлов и сообщений между устройствами</title>
+    <meta name="description" content="Быстрая и безопасная передача файлов и сообщений между устройствами через QR-код. Создавайте мосты между устройствами и обменивайтесь данными без регистрации.">
+    <meta name="keywords" content="передача файлов, обмен файлами, QR-код, синхронизация устройств, быстрая передача данных">
+    <meta name="author" content="Dream Partners">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://share.dreampartners.online/">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://share.dreampartners.online/">
+    <meta property="og:title" content="QS Connect - Быстрая передача файлов и сообщений">
+    <meta property="og:description" content="Быстрая и безопасная передача файлов и сообщений между устройствами через QR-код.">
+    <meta property="og:image" content="https://api.dreampartners.online/icons/share/android-chrome-512x512.png">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://share.dreampartners.online/">
+    <meta property="twitter:title" content="QS Connect - Быстрая передача файлов и сообщений">
+    <meta property="twitter:description" content="Быстрая и безопасная передача файлов и сообщений между устройствами через QR-код.">
+    <meta property="twitter:image" content="https://api.dreampartners.online/icons/share/android-chrome-512x512.png">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="https://api.dreampartners.online/icons/share/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://api.dreampartners.online/icons/share/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://api.dreampartners.online/icons/share/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://api.dreampartners.online/icons/share/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://api.dreampartners.online/icons/share/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="https://api.dreampartners.online/icons/share/android-chrome-512x512.png">
+    <link rel="manifest" href="/manifest.json">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body { 
+            background-color: #F5F5F7; 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            color: #1D1D1F;
+        }
+
+        .bento-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-apple {
+            background: #000000;
+            color: white;
+            border-radius: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-apple:active { transform: scale(0.96); opacity: 0.9; }
+
+        .tab-btn { color: #86868B; font-weight: 600; padding: 12px 20px; border-radius: 12px; }
+        .tab-btn.active { color: #1D1D1F; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+        .scan-line {
+            height: 2px;
+            background: #000000;
+            box-shadow: 0 0 15px #000000;
+            position: absolute;
+            width: 100%;
+            top: 0;
+            animation: moveScan 2s infinite linear;
+        }
+
+        @keyframes moveScan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+
+        ::-webkit-scrollbar { width: 0px; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-4 px-2">
+            <h1 class="text-xl font-extrabold tracking-tight">QS <span class="text-black">Connect</span></h1>
+            <div id="connection-status" class="text-xs bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm flex items-center gap-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span> 
+                <span id="node-id-display">NODE: ...</span>
+                <span id="room-id-display" class="hidden text-gray-500">• NET: ...</span>
+            </div>
+        </header>
+
+        <!-- Main Bento Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+            
+            <!-- Left Column: Controls & QR -->
+            <div class="md:col-span-4 space-y-3">
+                
+                <!-- Tab Selector Card -->
+                <div class="bento-card p-2 flex gap-1">
+                    <button onclick="setTab('terminal')" id="t-terminal" class="tab-btn flex-1 active">
+                        <i class="bi bi-broadcast mr-2"></i>Лента
+                    </button>
+                    <button onclick="setTab('link')" id="t-link" class="tab-btn flex-1">
+                        <i class="bi bi-qr-code-scan mr-2"></i>Связь
+                    </button>
+                </div>
+
+                <!-- My QR Card -->
+                <div class="bento-card p-4 flex flex-col items-center text-center">
+                    <div id="qrcode" class="bg-white p-1 rounded-xl mb-2 border border-gray-100"></div>
+                    <h3 class="font-bold text-sm mb-1">Ваш QR-код</h3>
+                    <p class="text-xs text-gray-400">Сканируйте, чтобы подключить устройство к этой ноде</p>
+                </div>
+
+                <!-- Send Card -->
+                <div class="bento-card p-4">
+                    <h3 class="font-bold mb-2 text-sm">Отправить</h3>
+                    <textarea id="text-input" rows="2" placeholder="Текст или ссылка..." class="w-full bg-transparent border-none focus:ring-0 text-xs mb-2 resize-none"></textarea>
+                    
+                    <label class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors mb-2">
+                        <i class="bi bi-paperclip text-gray-500 text-xs"></i>
+                        <span id="file-name" class="text-xs text-gray-500 truncate flex-1">Добавить файл</span>
+                        <input type="file" id="file-input" class="hidden" onchange="updateFileName(this)">
+                    </label>
+
+                    <button onclick="sendData()" class="btn-apple w-full py-2 font-bold text-xs shadow-lg shadow-gray-300">
+                        ОТПРАВИТЬ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Column: Content / Scanner -->
+            <div class="md:col-span-8">
+                
+                <!-- TERMINAL SECTION -->
+                <div id="section-terminal" class="space-y-2">
+                    <div id="feed" class="space-y-2">
+                        <!-- Messages arrive here -->
+                        <div class="bento-card p-6 text-center text-gray-400">
+                            <i class="bi bi-inbox text-2xl mb-2 block"></i>
+                            <p class="text-xs">Здесь появятся ваши файлы и текст</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Participants List -->
+                    <div class="bento-card p-3">
+                        <h3 class="font-bold text-xs mb-2 text-gray-600 flex items-center gap-1">
+                            <i class="bi bi-people text-xs"></i> Участники ноды
+                        </h3>
+                        <div id="participants-list" class="flex flex-wrap gap-1.5">
+                            <!-- Participants will appear here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- LINK SECTION -->
+                <div id="section-link" class="hidden space-y-3">
+                    <div class="bento-card p-4">
+                        <h3 class="font-bold text-base mb-3">Создать Мост</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div id="bridge-list" class="col-span-2 space-y-3">
+                                <!-- Linked devices will show here -->
+                            </div>
+                        </div>
+
+                        <!-- Manual ID Input -->
+                        <div class="mb-3">
+                            <input type="text" id="manual-node-id" placeholder="Введите ID устройства" class="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-black text-xs" onkeypress="if(event.key === 'Enter') addManualNode()">
+                            <button onclick="addManualNode()" class="mt-1.5 w-full btn-apple py-2 text-xs flex items-center justify-center gap-1">
+                                <i class="bi bi-plus-circle"></i> Добавить устройство
+                            </button>
+                        </div>
+
+                        <div class="flex gap-2 mb-3">
+                            <button onclick="initScanner()" class="flex-1 btn-apple bg-black py-4 flex items-center justify-center gap-2">
+                                <i class="bi bi-camera"></i> Камера
+                            </button>
+                            <label class="flex-1 btn-apple bg-gray-200 !text-black py-4 flex items-center justify-center gap-2 cursor-pointer">
+                                <i class="bi bi-image"></i> Фото
+                                <input type="file" accept="image/*" class="hidden" onchange="scanImage(this)">
+                            </label>
+                        </div>
+
+                        <div id="scanner-container" class="mt-6 rounded-3xl overflow-hidden relative hidden border-4 border-white shadow-2xl">
+                            <div id="reader"></div>
+                            <div class="scan-line"></div>
+                        </div>
+
+                        <button id="bridge-action-btn" onclick="executeBridge()" class="mt-3 w-full py-2 bg-green-500 text-white rounded-xl font-black text-xs hidden">
+                            СВЯЗАТЬ УСТРОЙСТВА
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate secure 5-character alphanumeric ID
+        function generateSecureId() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 5; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+        
+        const nodeId = localStorage.getItem('qs_node_id') || generateSecureId();
+        localStorage.setItem('qs_node_id', nodeId);
+        
+        let bridgeQueue = new Set([nodeId]); 
+        let knownMessages = new Set();
+        let html5QrCode = null;
+
+        async function init() {
+            document.getElementById('node-id-display').innerText = `ID: ${nodeId}`;
+            
+            // Register on server and get room_id in one request
+            try {
+                const initRes = await fetch(`/api/init/${nodeId}`);
+                const initData = await initRes.json();
+                if (initData.room_id) {
+                    const roomDisplay = document.getElementById('room-id-display');
+                    roomDisplay.classList.remove('hidden');
+                    roomDisplay.innerHTML = `• NET: <span class="font-bold">${initData.room_id}</span>`;
+                }
+            } catch(e) {
+                // Silently fail
+            }
+            
+            // Generate QR for this node
+            new QRCode(document.getElementById("qrcode"), {
+                text: `${window.location.origin}/?target=${nodeId}`,
+                width: 140, height: 140,
+                colorDark: "#1D1D1F", colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Check if we came from a QR
+            const params = new URLSearchParams(window.location.search);
+            const target = params.get('target');
+            if (target && target !== nodeId) {
+                addToBridge(target);
+                setTab('link');
+            }
+
+            startPolling();
+        }
+
+        function setTab(name) {
+            document.getElementById('section-terminal').classList.add('hidden');
+            document.getElementById('section-link').classList.add('hidden');
+            document.getElementById(`section-${name}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`t-${name}`).classList.add('active');
+
+            if (name !== 'link' && html5QrCode) {
+                html5QrCode.stop();
+                document.getElementById('scanner-container').classList.add('hidden');
+            }
+        }
+
+        function addToBridge(id) {
+            bridgeQueue.add(id);
+            renderBridgeList();
+        }
+
+        function renderBridgeList() {
+            const list = document.getElementById('bridge-list');
+            list.innerHTML = '';
+            bridgeQueue.forEach(id => {
+                const item = document.createElement('div');
+                item.className = "flex justify-between items-center p-4 bg-white rounded-2xl border border-gray-100 shadow-sm";
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center font-bold text-xs">${id == nodeId ? 'Я' : 'PC'}</div>
+                        <span class="font-bold text-sm">Устройство ${id}</span>
+                    </div>
+                    <i class="bi bi-check-circle-fill text-green-500"></i>
+                `;
+                list.appendChild(item);
+            });
+
+            if (bridgeQueue.size >= 2) {
+                document.getElementById('bridge-action-btn').classList.remove('hidden');
+            }
+        }
+
+        async function executeBridge() {
+            const res = await fetch('/api/bridge', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ids: Array.from(bridgeQueue) })
+            });
+            if (res.ok) {
+                alert('Устройства успешно связаны в одну сеть!');
+                setTab('terminal');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function updateFileName(input) {
+            const fileNameEl = document.getElementById('file-name');
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const size = formatFileSize(file.size);
+                fileNameEl.innerText = `${file.name} (${size})`;
+                fileNameEl.style.color = '#6b7280';
+            } else {
+                fileNameEl.innerText = "Добавить файл";
+                fileNameEl.style.color = '#6b7280';
+            }
+        }
+
+        async function sendData() {
+            const text = document.getElementById('text-input').value;
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            
+            if (!text && !file) return;
+
+            // No client-side size limit - let server handle it
+            // (Real limitation is from tunnel/proxy, not our app)
+
+            const fd = new FormData();
+            fd.append('node_id', nodeId);
+            if (text) fd.append('text', text);
+            if (file) fd.append('file', file);
+
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "ОТПРАВКА...";
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/push', { method: 'POST', body: fd });
+                
+                // Handle 413 error specifically
+                if (response.status === 413) {
+                    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                    throw new Error(`ОШИБКА: Туннель блокирует файл размером ${fileSizeMB} MB. Проблема в настройках туннеля (tunnel.dreampartners.online), а не в приложении. Приложение принимает файлы до 10 GB. Нужно увеличить лимит размера запросов в настройках туннеля.`);
+                }
+                
+                // Try to parse JSON, but handle HTML responses
+                let result = {};
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    result = await response.json();
+                } else {
+                    // If not JSON, read as text to see what we got
+                    const text = await response.text();
+                    if (response.ok) {
+                        // Success but not JSON - assume it worked
+                        result = { status: 'ok' };
+                    } else {
+                        throw new Error(`Ошибка сервера (${response.status}). Попробуйте позже.`);
+                    }
+                }
+                
+                if (!response.ok) {
+                    throw new Error(result.error || `Ошибка ${response.status}`);
+                }
+                
+                document.getElementById('text-input').value = '';
+                fileInput.value = '';
+                document.getElementById('file-name').innerText = "Добавить файл";
+                setTab('terminal');
+            } catch (error) {
+                let errorMessage = error.message;
+                if (errorMessage.includes('Unexpected token') || errorMessage.includes('JSON')) {
+                    errorMessage = 'Файл слишком большой или произошла ошибка сервера. Попробуйте файл поменьше.';
+                }
+                alert('Ошибка отправки: ' + errorMessage);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function updateRoomId() {
+            try {
+                const res = await fetch(`/api/init/${nodeId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.room_id) {
+                        const roomDisplay = document.getElementById('room-id-display');
+                        if (roomDisplay) {
+                            roomDisplay.classList.remove('hidden');
+                            roomDisplay.innerHTML = `• NET: <span class="font-bold">${data.room_id}</span>`;
+                        }
+                    }
+                }
+            } catch(e) {
+                // Silently fail
+            }
+        }
+
+        async function updateParticipants() {
+            try {
+                const res = await fetch(`/api/participants/${nodeId}`);
+                const data = await res.json();
+                const participantsList = document.getElementById('participants-list');
+                participantsList.innerHTML = '';
+                
+                if (data.participants && data.participants.length > 0) {
+                    data.participants.forEach(pid => {
+                        const badge = document.createElement('div');
+                        badge.className = `px-2 py-0.5 rounded-full text-xs font-bold ${
+                            pid === nodeId 
+                                ? 'bg-black text-white' 
+                                : 'bg-gray-200 text-gray-700'
+                        }`;
+                        badge.innerText = pid === nodeId ? `Вы (${pid})` : `Устройство ${pid}`;
+                        participantsList.appendChild(badge);
+                    });
+                } else {
+                    participantsList.innerHTML = '<span class="text-xs text-gray-400">Нет участников</span>';
+                }
+            } catch(e) {
+                // Silently fail
+            }
+        }
+
+        function startPolling() {
+            // Update participants immediately
+            updateParticipants();
+            
+            // Update room ID and participants periodically (less frequently to reduce load)
+            setInterval(() => {
+                updateParticipants();
+            }, 3000);
+            
+            // Update room ID less frequently
+            setInterval(() => {
+                updateRoomId();
+            }, 10000);
+            
+            setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/poll/${nodeId}`);
+                    const data = await res.json();
+                    const feed = document.getElementById('feed');
+
+                    if (data.length > 0 && feed.querySelector('.text-center')) feed.innerHTML = '';
+
+                    data.reverse().forEach(msg => {
+                        if (!knownMessages.has(msg.id)) {
+                            knownMessages.add(msg.id);
+                            
+                            const card = document.createElement('div');
+                            card.className = "bento-card p-3 transition-all border-l-4 border-l-black shadow-sm";
+                            
+                            let content = '';
+                            if (msg.type === 'text') {
+                                content = `
+                                    <div class="flex justify-between items-start mb-2">
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Text Node ${msg.from}</span>
+                                        <button onclick="copyText(this, '${msg.id}')" class="text-black font-bold text-[10px] hover:underline">КОПИРОВАТЬ</button>
+                                    </div>
+                                    <div id="raw-${msg.id}" class="text-xs leading-relaxed text-gray-800 break-words">${msg.content}</div>
+                                `;
+                            } else {
+                                content = `
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-black text-sm">
+                                                <i class="bi bi-file-earmark-arrow-down"></i>
+                                            </div>
+                                            <div>
+                                                <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">File from ${msg.from}</div>
+                                                <div class="text-xs font-bold truncate max-w-[120px]">${msg.name}</div>
+                                            </div>
+                                        </div>
+                                        <a href="/download/${msg.url}" target="_blank" class="btn-apple px-3 py-1.5 text-[10px] font-bold">СКАЧАТЬ</a>
+                                    </div>
+                                `;
+                            }
+                            card.innerHTML = content;
+                            feed.prepend(card);
+                        }
+                    });
+                } catch(e) {}
+            }, 2000);
+        }
+
+        function copyText(btn, id) {
+            const text = document.getElementById(`raw-${id}`).innerText;
+            navigator.clipboard.writeText(text);
+            const original = btn.innerText;
+            btn.innerText = "ГОТОВО ✅";
+            setTimeout(() => btn.innerText = original, 2000);
+        }
+
+        // Scanner Logic
+        function initScanner() {
+            document.getElementById('scanner-container').classList.remove('hidden');
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    handleScanSuccess(decodedText);
+                    html5QrCode.stop();
+                    document.getElementById('scanner-container').classList.add('hidden');
+                }
+            );
+        }
+
+        function scanImage(input) {
+            if (input.files && input.files[0]) {
+                const html5QrCode = new Html5Qrcode("reader");
+                html5QrCode.scanFile(input.files[0], true)
+                .then(decodedText => handleScanSuccess(decodedText))
+                .catch(err => alert("QR код не найден на фото"));
+            }
+        }
+
+        function handleScanSuccess(text) {
+            try {
+                const url = new URL(text);
+                const target = url.searchParams.get('target');
+                if (target) addToBridge(target);
+            } catch(e) { alert("Неверный QR-код системы"); }
+        }
+
+        function addManualNode() {
+            const input = document.getElementById('manual-node-id');
+            const nodeIdValue = input.value.trim();
+            if (nodeIdValue) {
+                addToBridge(nodeIdValue);
+                input.value = '';
+            } else {
+                alert('Введите ID устройства');
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
