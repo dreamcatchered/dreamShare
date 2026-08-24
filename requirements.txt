@@ -1,0 +1,6 @@
+flask
+apscheduler
+Pillow
+wand
+python-dotenv
+requests

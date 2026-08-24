@@ -7,7 +7,7 @@
     <!-- SEO Meta Tags -->
     <title>QS Connect - Быстрая передача файлов и сообщений между устройствами</title>
     <meta name="description" content="Быстрая и безопасная передача файлов и сообщений между устройствами через QR-код. Создавайте мосты между устройствами и обменивайтесь данными без регистрации.">
-    <meta name="keywords" content="передача файлов, обмен файлами, QR-код, синхронизация устройств, быстрая передача данных">
+    <meta name="keywords" content="передача файлов, обмен файлами, QR-код, синхронизация устройств, быстрая передача данных, pastebin">
     <meta name="author" content="Dream Partners">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://share.dreampartners.online/">
@@ -38,6 +38,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <!-- Библиотека для подсветки синтаксиса кода -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
@@ -84,6 +89,16 @@
         }
 
         ::-webkit-scrollbar { width: 0px; }
+        
+        /* Стили для скроллбара в коде */
+        pre::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        pre::-webkit-scrollbar-thumb {
+            background-color: #4b5563;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8">
@@ -125,15 +140,23 @@
                 <!-- Send Card -->
                 <div class="bento-card p-4">
                     <h3 class="font-bold mb-2 text-sm">Отправить</h3>
-                    <textarea id="text-input" rows="2" placeholder="Текст или ссылка..." class="w-full bg-transparent border-none focus:ring-0 text-xs mb-2 resize-none"></textarea>
                     
-                    <label class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors mb-2">
-                        <i class="bi bi-paperclip text-gray-500 text-xs"></i>
-                        <span id="file-name" class="text-xs text-gray-500 truncate flex-1">Добавить файл</span>
-                        <input type="file" id="file-input" class="hidden" onchange="updateFileName(this)">
-                    </label>
+                    <textarea id="text-input" placeholder="Текст или код (любой объем)..." class="w-full bg-transparent border-none focus:ring-0 text-xs mb-2 resize-none min-h-[80px] max-h-[300px] overflow-y-auto" rows="3"></textarea>
+                    
+                    <div class="flex items-center justify-between gap-2 mb-3">
+                        <label class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors flex-1 w-full overflow-hidden">
+                            <i class="bi bi-paperclip text-gray-500 text-xs"></i>
+                            <span id="file-name" class="text-xs text-gray-500 truncate flex-1 block w-full">Добавить файл</span>
+                            <input type="file" id="file-input" class="hidden" onchange="updateFileName(this)">
+                        </label>
+                        
+                        <label class="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors whitespace-nowrap">
+                            <input type="checkbox" id="is-code" class="rounded w-3.5 h-3.5 border-gray-300">
+                            <span class="text-[11px] font-bold text-gray-600">Как код</span>
+                        </label>
+                    </div>
 
-                    <button onclick="sendData()" class="btn-apple w-full py-2 font-bold text-xs shadow-lg shadow-gray-300">
+                    <button onclick="sendData()" class="btn-apple w-full py-3 font-bold text-xs shadow-lg shadow-gray-300">
                         ОТПРАВИТЬ
                     </button>
                 </div>
@@ -148,7 +171,7 @@
                         <!-- Messages arrive here -->
                         <div class="bento-card p-6 text-center text-gray-400">
                             <i class="bi bi-inbox text-2xl mb-2 block"></i>
-                            <p class="text-xs">Здесь появятся ваши файлы и текст</p>
+                            <p class="text-xs">Здесь появятся ваши файлы, текст и код</p>
                         </div>
                     </div>
                     
@@ -225,10 +248,20 @@
         let knownMessages = new Set();
         let html5QrCode = null;
 
+        // Экранирование HTML для безопасного вывода текста и кода
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
         async function init() {
             document.getElementById('node-id-display').innerText = `ID: ${nodeId}`;
             
-            // Register on server and get room_id in one request
             try {
                 const initRes = await fetch(`/api/init/${nodeId}`);
                 const initData = await initRes.json();
@@ -237,11 +270,8 @@
                     roomDisplay.classList.remove('hidden');
                     roomDisplay.innerHTML = `• NET: <span class="font-bold">${initData.room_id}</span>`;
                 }
-            } catch(e) {
-                // Silently fail
-            }
+            } catch(e) {}
             
-            // Generate QR for this node
             new QRCode(document.getElementById("qrcode"), {
                 text: `${window.location.origin}/?target=${nodeId}`,
                 width: 140, height: 140,
@@ -249,7 +279,6 @@
                 correctLevel: QRCode.CorrectLevel.H
             });
 
-            // Check if we came from a QR
             const params = new URLSearchParams(window.location.search);
             const target = params.get('target');
             if (target && target !== nodeId) {
@@ -326,27 +355,28 @@
                 const file = input.files[0];
                 const size = formatFileSize(file.size);
                 fileNameEl.innerText = `${file.name} (${size})`;
-                fileNameEl.style.color = '#6b7280';
+                fileNameEl.style.color = '#1D1D1F';
+                fileNameEl.style.fontWeight = 'bold';
             } else {
                 fileNameEl.innerText = "Добавить файл";
                 fileNameEl.style.color = '#6b7280';
+                fileNameEl.style.fontWeight = 'normal';
             }
         }
 
         async function sendData() {
             const text = document.getElementById('text-input').value;
             const fileInput = document.getElementById('file-input');
+            const isCode = document.getElementById('is-code').checked;
             const file = fileInput.files[0];
             
             if (!text && !file) return;
-
-            // No client-side size limit - let server handle it
-            // (Real limitation is from tunnel/proxy, not our app)
 
             const fd = new FormData();
             fd.append('node_id', nodeId);
             if (text) fd.append('text', text);
             if (file) fd.append('file', file);
+            if (isCode) fd.append('is_code', 'true');
 
             const btn = event.target;
             const originalText = btn.innerText;
@@ -356,25 +386,21 @@
             try {
                 const response = await fetch('/api/push', { method: 'POST', body: fd });
                 
-                // Handle 413 error specifically
                 if (response.status === 413) {
                     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                    throw new Error(`ОШИБКА: Туннель блокирует файл размером ${fileSizeMB} MB. Проблема в настройках туннеля (tunnel.dreampartners.online), а не в приложении. Приложение принимает файлы до 10 GB. Нужно увеличить лимит размера запросов в настройках туннеля.`);
+                    throw new Error(`ОШИБКА: Туннель блокирует файл размером ${fileSizeMB} MB. Требуется увеличить лимит в туннеле.`);
                 }
                 
-                // Try to parse JSON, but handle HTML responses
                 let result = {};
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     result = await response.json();
                 } else {
-                    // If not JSON, read as text to see what we got
-                    const text = await response.text();
+                    const textResponse = await response.text();
                     if (response.ok) {
-                        // Success but not JSON - assume it worked
                         result = { status: 'ok' };
                     } else {
-                        throw new Error(`Ошибка сервера (${response.status}). Попробуйте позже.`);
+                        throw new Error(`Ошибка сервера (${response.status}).`);
                     }
                 }
                 
@@ -384,17 +410,50 @@
                 
                 document.getElementById('text-input').value = '';
                 fileInput.value = '';
-                document.getElementById('file-name').innerText = "Добавить файл";
+                updateFileName(fileInput);
                 setTab('terminal');
             } catch (error) {
                 let errorMessage = error.message;
                 if (errorMessage.includes('Unexpected token') || errorMessage.includes('JSON')) {
-                    errorMessage = 'Файл слишком большой или произошла ошибка сервера. Попробуйте файл поменьше.';
+                    errorMessage = 'Произошла ошибка сети. Попробуйте снова.';
                 }
-                alert('Ошибка отправки: ' + errorMessage);
+                alert('Ошибка: ' + errorMessage);
             } finally {
                 btn.innerText = originalText;
                 btn.disabled = false;
+            }
+        }
+
+        async function deleteMessage(msgId) {
+            if (!confirm('Удалить это для всех участников? (Файлы будут немедленно стерты с сервера)')) return;
+            try {
+                const res = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ node_id: nodeId, msg_id: msgId })
+                });
+                
+                if (res.ok) {
+                    // Мгновенное удаление с экрана до прихода пулла
+                    const el = document.querySelector(`.message-card[data-id="${msgId}"]`);
+                    if (el) el.remove();
+                    knownMessages.delete(msgId);
+                    
+                    const feed = document.getElementById('feed');
+                    if (feed.children.length === 0) {
+                        feed.innerHTML = `
+                            <div class="bento-card p-6 text-center text-gray-400">
+                                <i class="bi bi-inbox text-2xl mb-2 block"></i>
+                                <p class="text-xs">Здесь появятся ваши файлы, текст и код</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    const data = await res.json();
+                    alert('Ошибка удаления: ' + data.error);
+                }
+            } catch(e) {
+                alert('Ошибка соединения: ' + e);
             }
         }
 
@@ -411,9 +470,7 @@
                         }
                     }
                 }
-            } catch(e) {
-                // Silently fail
-            }
+            } catch(e) {}
         }
 
         async function updateParticipants() {
@@ -426,35 +483,24 @@
                 if (data.participants && data.participants.length > 0) {
                     data.participants.forEach(pid => {
                         const badge = document.createElement('div');
-                        badge.className = `px-2 py-0.5 rounded-full text-xs font-bold ${
+                        badge.className = `px-2 py-0.5 rounded-full text-[10px] font-bold ${
                             pid === nodeId 
                                 ? 'bg-black text-white' 
                                 : 'bg-gray-200 text-gray-700'
                         }`;
-                        badge.innerText = pid === nodeId ? `Вы (${pid})` : `Устройство ${pid}`;
+                        badge.innerText = pid === nodeId ? `ВЫ (${pid})` : `УСТРОЙСТВО ${pid}`;
                         participantsList.appendChild(badge);
                     });
                 } else {
                     participantsList.innerHTML = '<span class="text-xs text-gray-400">Нет участников</span>';
                 }
-            } catch(e) {
-                // Silently fail
-            }
+            } catch(e) {}
         }
 
         function startPolling() {
-            // Update participants immediately
             updateParticipants();
-            
-            // Update room ID and participants periodically (less frequently to reduce load)
-            setInterval(() => {
-                updateParticipants();
-            }, 3000);
-            
-            // Update room ID less frequently
-            setInterval(() => {
-                updateRoomId();
-            }, 10000);
+            setInterval(updateParticipants, 3000);
+            setInterval(updateRoomId, 10000);
             
             setInterval(async () => {
                 try {
@@ -462,54 +508,110 @@
                     const data = await res.json();
                     const feed = document.getElementById('feed');
 
-                    if (data.length > 0 && feed.querySelector('.text-center')) feed.innerHTML = '';
+                    // Синхронизация удалений (если кто-то другой удалил сообщение)
+                    const currentIds = new Set(data.map(m => m.id));
+                    document.querySelectorAll('.message-card').forEach(card => {
+                        const msgId = card.dataset.id;
+                        if (!currentIds.has(msgId)) {
+                            card.remove();
+                            knownMessages.delete(msgId);
+                        }
+                    });
 
+                    if (data.length > 0 && feed.querySelector('.text-center')) {
+                        feed.innerHTML = '';
+                    }
+
+                    // Добавление новых сообщений
                     data.reverse().forEach(msg => {
                         if (!knownMessages.has(msg.id)) {
                             knownMessages.add(msg.id);
                             
                             const card = document.createElement('div');
-                            card.className = "bento-card p-3 transition-all border-l-4 border-l-black shadow-sm";
+                            card.className = "message-card bento-card p-4 transition-all border-l-4 border-l-black shadow-sm mb-3";
+                            card.dataset.id = msg.id;
                             
                             let content = '';
                             if (msg.type === 'text') {
+                                const formattedText = msg.is_code 
+                                    ? `<div class="relative mt-3"><pre class="rounded-xl bg-[#0d1117] p-4 overflow-x-auto border border-gray-800"><code class="text-[13px] text-gray-100 font-mono" id="raw-${msg.id}">${escapeHtml(msg.content)}</code></pre></div>`
+                                    : `<div id="raw-${msg.id}" class="text-[13px] leading-relaxed text-gray-800 break-words whitespace-pre-wrap mt-2 font-medium">${escapeHtml(msg.content)}</div>`;
+
                                 content = `
-                                    <div class="flex justify-between items-start mb-2">
-                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Text Node ${msg.from}</span>
-                                        <button onclick="copyText(this, '${msg.id}')" class="text-black font-bold text-[10px] hover:underline">КОПИРОВАТЬ</button>
+                                    <div class="flex justify-between items-center mb-1 border-b border-gray-100 pb-2">
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <i class="bi bi-person-circle text-xs"></i> NODE ${msg.from}
+                                        </span>
+                                        <div class="flex gap-1.5">
+                                            <button onclick="copyText(this, '${msg.id}')" class="text-black bg-gray-100 px-2 py-1 rounded-md font-bold text-[10px] hover:bg-gray-200 transition-colors">
+                                                <i class="bi bi-copy"></i> КОПИРОВАТЬ
+                                            </button>
+                                            <button onclick="deleteMessage('${msg.id}')" class="text-red-500 bg-red-50 px-2 py-1 rounded-md font-bold text-[10px] hover:bg-red-100 transition-colors" title="Удалить для всех">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div id="raw-${msg.id}" class="text-xs leading-relaxed text-gray-800 break-words">${msg.content}</div>
+                                    ${formattedText}
                                 `;
                             } else {
                                 content = `
+                                    <div class="flex justify-between items-center border-b border-gray-100 pb-2 mb-3">
+                                        <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                            <i class="bi bi-person-circle text-xs"></i> NODE ${msg.from}
+                                        </span>
+                                        <button onclick="deleteMessage('${msg.id}')" class="text-red-500 bg-red-50 px-2 py-1 rounded-md font-bold text-[10px] hover:bg-red-100 transition-colors" title="Удалить для всех">
+                                            <i class="bi bi-trash"></i> УДАЛИТЬ
+                                        </button>
+                                    </div>
                                     <div class="flex justify-between items-center">
-                                        <div class="flex items-center gap-2">
-                                            <div class="w-8 h-8 bg-gray-100 rounded-xl flex items-center justify-center text-black text-sm">
-                                                <i class="bi bi-file-earmark-arrow-down"></i>
+                                        <div class="flex items-center gap-3 overflow-hidden mr-3">
+                                            <div class="min-w-[40px] h-10 bg-gray-100 rounded-xl flex items-center justify-center text-black text-lg">
+                                                <i class="bi bi-file-earmark-arrow-down-fill"></i>
                                             </div>
-                                            <div>
-                                                <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">File from ${msg.from}</div>
-                                                <div class="text-xs font-bold truncate max-w-[120px]">${msg.name}</div>
+                                            <div class="overflow-hidden">
+                                                <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">ВЛОЖЕНИЕ</div>
+                                                <div class="text-[13px] font-bold truncate text-gray-800">${escapeHtml(msg.name)}</div>
                                             </div>
                                         </div>
-                                        <a href="/download/${msg.url}" target="_blank" class="btn-apple px-3 py-1.5 text-[10px] font-bold">СКАЧАТЬ</a>
+                                        <a href="/download/${msg.url}" target="_blank" class="btn-apple px-4 py-2.5 text-[11px] font-bold whitespace-nowrap bg-black text-white rounded-xl hover:scale-95 transition-transform shadow-md">СКАЧАТЬ</a>
                                     </div>
                                 `;
                             }
                             card.innerHTML = content;
                             feed.prepend(card);
+
+                            if (msg.is_code) {
+                                const codeBlock = card.querySelector('code');
+                                if (codeBlock) hljs.highlightElement(codeBlock);
+                            }
                         }
                     });
+                    
+                    if (feed.children.length === 0) {
+                        feed.innerHTML = `
+                            <div class="bento-card p-6 text-center text-gray-400">
+                                <i class="bi bi-inbox text-2xl mb-2 block"></i>
+                                <p class="text-xs">Здесь появятся ваши файлы, текст и код</p>
+                            </div>
+                        `;
+                    }
                 } catch(e) {}
             }, 2000);
         }
 
         function copyText(btn, id) {
-            const text = document.getElementById(`raw-${id}`).innerText;
+            // Используем textContent, чтобы скопировать точный текст вместе с форматированием кода и переносами
+            const text = document.getElementById(`raw-${id}`).textContent;
             navigator.clipboard.writeText(text);
-            const original = btn.innerText;
-            btn.innerText = "ГОТОВО ✅";
-            setTimeout(() => btn.innerText = original, 2000);
+            const original = btn.innerHTML;
+            btn.innerHTML = "<i class='bi bi-check2-all'></i> ГОТОВО";
+            btn.classList.add('bg-green-100', 'text-green-700');
+            btn.classList.remove('bg-gray-100', 'text-black');
+            setTimeout(() => {
+                btn.innerHTML = original;
+                btn.classList.remove('bg-green-100', 'text-green-700');
+                btn.classList.add('bg-gray-100', 'text-black');
+            }, 2000);
         }
 
         // Scanner Logic
